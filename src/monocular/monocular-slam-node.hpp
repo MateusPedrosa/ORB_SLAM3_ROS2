@@ -22,14 +22,18 @@ public:
 
 private:
     using ImageMsg = sensor_msgs::msg::Image;
+    using CompressedImageMsg = sensor_msgs::msg::CompressedImage;
 
     void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
+
+    void GrabCompressedImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
 
     ORB_SLAM3::System* m_SLAM;
 
     cv_bridge::CvImagePtr m_cvImPtr;
 
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr m_image_subscriber;
+    // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr m_image_subscriber;
+    rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr m_image_subscriber;
 };
 
 #endif

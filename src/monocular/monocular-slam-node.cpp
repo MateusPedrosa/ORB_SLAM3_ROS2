@@ -9,10 +9,20 @@ MonocularSlamNode::MonocularSlamNode(ORB_SLAM3::System* pSLAM)
 {
     m_SLAM = pSLAM;
     // std::cout << "slam changed" << std::endl;
-    m_image_subscriber = this->create_subscription<ImageMsg>(
-        "camera",
-        10,
-        std::bind(&MonocularSlamNode::GrabImage, this, std::placeholders::_1));
+
+    auto qos = rclcpp::QoS(rclcpp::KeepLast(10));
+    qos.reliable();
+
+    // m_image_subscriber = this->create_subscription<ImageMsg>(
+    //     "/camera/image_raw",
+    //     qos,
+    //     std::bind(&MonocularSlamNode::GrabImage, this, std::placeholders::_1));
+    // std::cout << "slam changed" << std::endl;
+
+    m_image_subscriber = this->create_subscription<CompressedImageMsg>(
+        "oceansim/robot/uw_img",
+        qos,
+        std::bind(&MonocularSlamNode::GrabCompressedImage, this, std::placeholders::_1));
     std::cout << "slam changed" << std::endl;
 }
 
@@ -20,6 +30,9 @@ MonocularSlamNode::~MonocularSlamNode()
 {
     // Stop all threads
     m_SLAM->Shutdown();
+
+    // Save the point cloud
+    m_SLAM->SavePointCloudMap("PointCloud.txt");
 
     // Save camera trajectory
     m_SLAM->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
@@ -40,4 +53,34 @@ void MonocularSlamNode::GrabImage(const ImageMsg::SharedPtr msg)
 
     std::cout<<"one frame has been sent"<<std::endl;
     m_SLAM->TrackMonocular(m_cvImPtr->image, Utility::StampToSec(msg->header.stamp));
+}
+
+
+void MonocularSlamNode::GrabCompressedImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg)
+{
+    try
+    {
+        // Decompress the JPEG data
+        cv::Mat cv_image = cv::imdecode(cv::Mat(msg->data), cv::IMREAD_COLOR);
+        
+        if (cv_image.empty())
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to decode compressed image");
+            return;
+        }
+        
+        // Convert BGR to grayscale (ORB_SLAM3 needs grayscale)
+        cv::Mat gray_image;
+        cv::cvtColor(cv_image, gray_image, cv::COLOR_BGR2GRAY);
+        
+        std::cout << "one frame has been sent" << std::endl;
+        
+        // Track with ORB_SLAM3
+        m_SLAM->TrackMonocular(gray_image, Utility::StampToSec(msg->header.stamp));
+    }
+    catch (const std::exception& e)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Error processing compressed image: %s", e.what());
+        return;
+    }
 }
