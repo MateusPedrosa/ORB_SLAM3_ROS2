@@ -1,0 +1,102 @@
+%YAML:1.0
+
+#--------------------------------------------------------------------------------------------
+# Camera Parameters
+#--------------------------------------------------------------------------------------------
+Camera.type: "PinHole"
+
+# Camera calibration parameters
+Camera.fx: 413.32595366566017
+Camera.fy: 413.70198739483686
+Camera.cx: 305.9507483284928
+Camera.cy: 259.4439948946375
+
+# Distortion parameters (radial-tangential model for PinHole)
+# NOTE: Original AQUALOC calibration uses equidistant/fisheye model
+# which is incompatible with ORB-SLAM3 PinHole type
+# Setting to zero - rectify images beforehand for best results
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+Camera.k3: 0.0
+
+Camera.width: 640
+Camera.height: 512
+Camera.fps: 20
+Camera.RGB: 1
+
+#--------------------------------------------------------------------------------------------
+# Camera-IMU Transformation
+#--------------------------------------------------------------------------------------------
+# Transformation from body-frame (imu) to camera
+# Using T_cam_imu from your calibration data
+Tbc: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: f
+   data: [-0.99978035, 0.01210101, 0.01711187, -0.01866921,
+          0.0169654, -0.01210461, 0.9997828, 0.02125636,
+          0.01230552, 0.99985351, 0.01189665, -0.1489863,
+          0.0, 0.0, 0.0, 1.0]
+
+# Alternative transformation from camera to IMU (T_imu_cam)
+# Included for reference - ORB-SLAM3 primarily uses Tbc above
+Tcb: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: f
+   data: [-0.99978035, 0.0169654, 0.01230552, -0.01719238,
+          0.01210101, -0.01210461, 0.99985351, 0.14944769,
+          0.01711187, 0.9997828, 0.01189665, -0.01915984,
+          0.0, 0.0, 0.0, 1.0]
+
+# Time shift between camera and IMU (seconds)
+TimeshiftCamImu: -0.0403806549886
+
+#--------------------------------------------------------------------------------------------
+# IMU Parameters
+#--------------------------------------------------------------------------------------------
+# IMU noise parameters - tuned for underwater MEMS IMU
+IMU.NoiseGyro: 0.1         # rad/s^0.5 (very conservative for initialization)
+IMU.NoiseAcc: 0.5          # m/s^1.5 (very conservative for initialization)
+IMU.GyroWalk: 0.001        # rad/s^1.5
+IMU.AccWalk: 0.01          # m/s^2.5
+IMU.Frequency: 200         # Actual IMU frequency (check your bag file)
+
+# IMU initialization - important for handling raw IMU without orientation
+IMU.InsertKFsWhenLost: 4
+IMU.FastInit: 0            # Use 0 for slower but more robust initialization
+
+#--------------------------------------------------------------------------------------------
+# ORB Parameters
+#--------------------------------------------------------------------------------------------
+# ORB Extractor: Number of features per image
+ORBextractor.nFeatures: 1000
+
+# ORB Extractor: Scale factor between levels in the scale pyramid
+ORBextractor.scaleFactor: 1.2
+
+# ORB Extractor: Number of levels in the scale pyramid
+ORBextractor.nLevels: 8
+
+# ORB Extractor: Fast threshold
+# Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
+# Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
+# You can lower these values if your images have low contrast
+ORBextractor.iniThFAST: 10
+ORBextractor.minThFAST: 3
+
+#--------------------------------------------------------------------------------------------
+# Viewer Parameters
+#--------------------------------------------------------------------------------------------
+Viewer.KeyFrameSize: 0.05
+Viewer.KeyFrameLineWidth: 1
+Viewer.GraphLineWidth: 0.9
+Viewer.PointSize: 2
+Viewer.CameraSize: 0.08
+Viewer.CameraLineWidth: 3
+Viewer.ViewpointX: 0
+Viewer.ViewpointY: -0.7
+Viewer.ViewpointZ: -1.8
+Viewer.ViewpointF: 500
