@@ -3,6 +3,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 #include <cv_bridge/cv_bridge.h>
 
@@ -34,6 +35,12 @@ private:
 
     // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr m_image_subscriber;
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr m_image_subscriber;
+
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr m_pointcloud_publisher;
+    
+    rclcpp::TimerBase::SharedPtr m_pointcloud_timer;
+    
+    void PublishMapPoints();
 };
 
 #endif
