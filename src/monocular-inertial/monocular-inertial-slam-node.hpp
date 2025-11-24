@@ -5,7 +5,7 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 
 #include "System.h"
 #include "Frame.h"
@@ -28,8 +28,10 @@ private:
     using CompressedImageMsg = sensor_msgs::msg::CompressedImage;
 
     void GrabImu(const ImuMsg::SharedPtr msg);
-    void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
+    // void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
+    // cv::Mat GetImage(const ImageMsg::SharedPtr msg);
     cv::Mat GetImage(const ImageMsg::SharedPtr msg);
+    cv::Mat GetCompressedImage(const CompressedImageMsg::SharedPtr msg);
     void SyncWithImu();
 
     void GrabCompressedImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
@@ -40,14 +42,15 @@ private:
     cv_bridge::CvImagePtr m_cvImPtr;
 
     rclcpp::Subscription<ImuMsg>::SharedPtr   subImu_;
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr m_image_subscriber;
+    rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr m_image_subscriber;
 
     // IMU
     queue<ImuMsg::SharedPtr> imuBuf_;
     std::mutex bufMutex_;
 
     // Image
-    queue<ImageMsg::SharedPtr> img0Buf;
+    // queue<ImageMsg::SharedPtr> img0Buf;
+    queue<CompressedImageMsg::SharedPtr> img0Buf;
     std::mutex mBufMutex;
 
     bool bClahe_;
