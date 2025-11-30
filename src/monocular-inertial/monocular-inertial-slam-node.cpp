@@ -4,20 +4,40 @@
 
 using std::placeholders::_1;
 
-MonocularInertialSlamNode::MonocularInertialSlamNode(ORB_SLAM3::System* pSLAM)
-:   Node("ORB_SLAM3_ROS2")
+MonocularInertialSlamNode::MonocularInertialSlamNode(ORB_SLAM3::System* pSLAM, const std::string &imu_topic, const std::string &image_topic, bool use_compressed)
+:   Node("ORB_SLAM3_ROS2"),
+    bUseCompressed_(use_compressed)
 {
     m_SLAM = pSLAM;
     // std::cout << "slam changed" << std::endl;
 
     auto qos = rclcpp::QoS(rclcpp::SensorDataQoS());
 
-    subImu_ = this->create_subscription<ImuMsg>("/oceansim/robot/imu", 1000, std::bind(&MonocularInertialSlamNode::GrabImu, this, _1));
-    m_image_subscriber = this->create_subscription<CompressedImageMsg>(
-        "oceansim/robot/uw_img",
-        qos,
-        std::bind(&MonocularInertialSlamNode::GrabCompressedImage, this, std::placeholders::_1)
+    subImu_ = this->create_subscription<ImuMsg>(
+        imu_topic,
+        1000,
+        std::bind(&MonocularInertialSlamNode::GrabImu, this, _1)
     );
+
+    if(bUseCompressed_)
+    {
+        std::cout << "Subscribing to Compressed Image topic: " << image_topic << std::endl;
+        subImgCompressed_ = this->create_subscription<CompressedImageMsg>(
+            image_topic,
+            qos,
+            std::bind(&MonocularInertialSlamNode::GrabCompressedImage, this, std::placeholders::_1)
+        );
+    }
+    else
+    {
+        std::cout << "Subscribing to Raw Image topic: " << image_topic << std::endl;
+        subImgRaw_ = this->create_subscription<ImageMsg>(
+            image_topic,
+            qos,
+            std::bind(&MonocularInertialSlamNode::GrabImage, this, std::placeholders::_1)
+        );
+    }
+
     std::cout << "slam changed" << std::endl;
 
     syncThread_ = new std::thread(&MonocularInertialSlamNode::SyncWithImu, this);
@@ -53,42 +73,43 @@ void MonocularInertialSlamNode::GrabImu(const ImuMsg::SharedPtr msg)
 //     mBufMutex.unlock();
 // }
 
-
-void MonocularInertialSlamNode::GrabCompressedImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg)
+void MonocularInertialSlamNode::GrabImage(const ImageMsg::SharedPtr msg)
 {
-    mBufMutex.lock();
-    if(img0Buf.size() > 5)
+    std::lock_guard<std::mutex> lock(mBufMutex);
+    if(imgRawBuf_.size() > 5)
     {
-        img0Buf.pop();
-        RCLCPP_WARN(this->get_logger(), "Image buffer overflow, dropping oldest frame");
+        imgRawBuf_.pop();
+        RCLCPP_WARN(this->get_logger(), "Raw Image buffer overflow, dropping oldest frame");
     }
-    img0Buf.push(msg);
-    mBufMutex.unlock();
+    imgRawBuf_.push(msg);
+}
+
+void MonocularInertialSlamNode::GrabCompressedImage(const CompressedImageMsg::SharedPtr msg)
+{
+    std::lock_guard<std::mutex> lock(mBufMutex);
+    if(imgCompBuf_.size() > 5)
+    {
+        imgCompBuf_.pop();
+        RCLCPP_WARN(this->get_logger(), "Compressed Image buffer overflow, dropping oldest frame");
+    }
+    imgCompBuf_.push(msg);
 }
 
 cv::Mat MonocularInertialSlamNode::GetImage(const ImageMsg::SharedPtr msg)
 {
-    // Copy the ros image message to cv::Mat.
     cv_bridge::CvImageConstPtr cv_ptr;
-
     try
     {
+        // Force conversion to MONO8 for ORB_SLAM
         cv_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8);
     }
     catch (cv_bridge::Exception &e)
     {
         RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        return cv::Mat();
     }
 
-    if (cv_ptr->image.type() == 0)
-    {
-        return cv_ptr->image.clone();
-    }
-    else
-    {
-        std::cerr << "Error image type" << std::endl;
-        return cv_ptr->image.clone();
-    }
+    return cv_ptr->image.clone();
 }
 
 cv::Mat MonocularInertialSlamNode::GetCompressedImage(const CompressedImageMsg::SharedPtr msg)
@@ -126,13 +147,21 @@ void MonocularInertialSlamNode::SyncWithImu()
         bool hasImg = false;
         bool hasImu = false;
 
-        cv::Mat im;
-
         // Check Image Buffer
         mBufMutex.lock();
-        if (!img0Buf.empty()) {
-            hasImg = true;
-            tIm = Utility::StampToSec(img0Buf.front()->header.stamp);
+        if (bUseCompressed_)
+        {
+            if (!imgCompBuf_.empty()) {
+                hasImg = true;
+                tIm = Utility::StampToSec(imgCompBuf_.front()->header.stamp);
+            }
+        }
+        else
+        {
+            if (!imgRawBuf_.empty()) {
+                hasImg = true;
+                tIm = Utility::StampToSec(imgRawBuf_.front()->header.stamp);
+            }
         }
         mBufMutex.unlock();
 
@@ -150,14 +179,24 @@ void MonocularInertialSlamNode::SyncWithImu()
             continue;
         }
 
-        // Pop Image
+        // Pop and Decode Image
+        cv::Mat im;
         mBufMutex.lock();
-        auto imgMsg = img0Buf.front();
-        img0Buf.pop();
-        mBufMutex.unlock();
-        
-        // Decode Image
-        im = GetCompressedImage(imgMsg);
+        if (bUseCompressed_)
+        {
+            auto imgMsg = imgCompBuf_.front();
+            imgCompBuf_.pop();
+            mBufMutex.unlock(); // Unlock before expensive decode
+            im = GetCompressedImage(imgMsg);
+        }
+        else
+        {
+            auto imgMsg = imgRawBuf_.front();
+            imgRawBuf_.pop();
+            mBufMutex.unlock(); // Unlock before copy/decode
+            im = GetImage(imgMsg);
+        }
+
         if(im.empty()) continue; // Skip bad images
 
         // Resize image to improve performance (e.g., Scale by 0.5)

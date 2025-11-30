@@ -13,9 +13,33 @@ int main(int argc, char **argv)
 {
     if(argc < 3)
     {
-        std::cerr << "\nUsage: ros2 run orbslam mono-inertial path_to_vocabulary path_to_settings" << std::endl;
+        std::cerr << "\nUsage: ros2 run orbslam mono-inertial path_to_vocabulary path_to_settings [imu_topic] [image_topic] [use_compressed]" << std::endl;
+        std::cerr << "Example: ... /imu /camera/image_raw false" << std::endl;
         return 1;
     }
+
+    // Set default topics
+    std::string imu_topic = "/oceansim/robot/imu";
+    std::string img_topic = "oceansim/robot/uw_img";
+    bool use_compressed = true;
+
+    // Override defaults if arguments are provided
+    if (argc > 3) {
+        imu_topic = std::string(argv[3]);
+    }
+    if (argc > 4) {
+        img_topic = std::string(argv[4]);
+    }
+    if (argc > 5) {
+        std::string arg_bool = std::string(argv[5]);
+        if (arg_bool == "false" || arg_bool == "0" || arg_bool == "False") {
+            use_compressed = false;
+        }
+    }
+
+    // Display selected configuration
+    std::cout << "Using IMU Topic: " << imu_topic << std::endl;
+    std::cout << "Using Image Topic: " << img_topic << std::endl;
 
     rclcpp::init(argc, argv);
 
@@ -24,7 +48,7 @@ int main(int argc, char **argv)
     bool visualization = true;
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::IMU_MONOCULAR, visualization);
 
-    auto node = std::make_shared<MonocularInertialSlamNode>(&SLAM);
+    auto node = std::make_shared<MonocularInertialSlamNode>(&SLAM, imu_topic, img_topic, use_compressed);
     std::cout << "============================ " << std::endl;\
 
     rclcpp::spin(node);
