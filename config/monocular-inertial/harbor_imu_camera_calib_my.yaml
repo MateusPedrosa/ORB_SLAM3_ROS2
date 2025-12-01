@@ -35,15 +35,13 @@ Camera.RGB: 1
 # Camera-IMU Transformation
 #--------------------------------------------------------------------------------------------
 # Transformation from Body-frame (IMU) to Camera
-# Source T_cam_imu maps points from IMU frame to Camera frame.
-# This corresponds to Tbc in ORB-SLAM3.
 Tbc: !!opencv-matrix
    rows: 4
    cols: 4
    dt: f
-   data: [-0.99978035, 0.01210101, 0.01711187, -0.01866921,
-          0.0169654, -0.01210461, 0.9997828, 0.02125636,
-          0.01230552, 0.99985351, 0.01189665, -0.1489863,
+   data: [-0.99978035,  0.0169654,  0.01230552, -0.01719238,
+          0.01210101, -0.01210461, 0.99985351,  0.14944769,
+          0.01711187,  0.9997828,  0.01189665, -0.01915984,
           0.0, 0.0, 0.0, 1.0]
 
 # Time shift between camera and IMU (seconds)
