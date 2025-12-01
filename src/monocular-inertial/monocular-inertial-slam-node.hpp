@@ -61,7 +61,7 @@ private:
     std::mutex mBufMutex;
 
     bool bUseCompressed_;
-    bool bClahe_;
+    bool bClahe_ = false;
     cv::Ptr<cv::CLAHE> clahe_ = cv::createCLAHE(3.0, cv::Size(8, 8));
 };
 
