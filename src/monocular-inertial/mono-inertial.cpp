@@ -43,15 +43,28 @@ int main(int argc, char **argv)
 
     rclcpp::init(argc, argv);
 
-    // malloc error using new.. try shared ptr
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     bool visualization = true;
-    ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::IMU_MONOCULAR, visualization);
+    // ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::IMU_MONOCULAR, visualization);
+    auto SLAM = std::make_shared<ORB_SLAM3::System>(argv[1], argv[2], ORB_SLAM3::System::IMU_MONOCULAR, visualization);
 
-    auto node = std::make_shared<MonocularInertialSlamNode>(&SLAM, imu_topic, img_topic, use_compressed);
+    // auto node = std::make_shared<MonocularInertialSlamNode>(&SLAM, imu_topic, img_topic, use_compressed);
+    auto node = std::make_shared<MonocularInertialSlamNode>(SLAM.get(), imu_topic, img_topic, use_compressed);
     std::cout << "============================ " << std::endl;\
 
     rclcpp::spin(node);
+
+    std::cout << "Exiting..." << std::endl;
+
+    // Destroy Node (Saves Trajectory, calls SLAM->Shutdown)
+    node.reset();
+    std::cout << "Node destroyed." << std::endl;
+    
+    // Destroy SLAM System (Closes Pangolin Viewer/Threads)
+    // We do this BEFORE rclcpp::shutdown to prevent thread conflicts.
+    SLAM.reset(); 
+    std::cout << "SLAM System destroyed." << std::endl;
+
     rclcpp::shutdown();
 
     return 0;
