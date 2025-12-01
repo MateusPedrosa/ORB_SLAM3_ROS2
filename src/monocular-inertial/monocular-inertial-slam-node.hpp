@@ -5,6 +5,7 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/compressed_image.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 #include <cv_bridge/cv_bridge.hpp>
 
@@ -37,7 +38,8 @@ private:
     cv::Mat GetCompressedImage(const CompressedImageMsg::SharedPtr msg);
 
     void SyncWithImu();
-    
+
+    void PublishMapPoints();
 
     ORB_SLAM3::System* m_SLAM;
     std::thread *syncThread_;
@@ -47,15 +49,15 @@ private:
     rclcpp::Subscription<ImuMsg>::SharedPtr subImu_;
     rclcpp::Subscription<CompressedImageMsg>::SharedPtr subImgCompressed_;
     rclcpp::Subscription<ImageMsg>::SharedPtr subImgRaw_;
-    // rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr m_image_subscriber;
+
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr m_pointcloud_publisher;
+    rclcpp::TimerBase::SharedPtr m_pointcloud_timer;
 
     // IMU
     queue<ImuMsg::SharedPtr> imuBuf_;
     std::mutex bufMutex_;
 
     // Image
-    // queue<ImageMsg::SharedPtr> img0Buf;
-    // queue<CompressedImageMsg::SharedPtr> img0Buf;
     std::queue<CompressedImageMsg::SharedPtr> imgCompBuf_;
     std::queue<ImageMsg::SharedPtr> imgRawBuf_;
     std::mutex mBufMutex;
