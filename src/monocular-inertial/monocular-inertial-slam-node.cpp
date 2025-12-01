@@ -52,6 +52,9 @@ MonocularInertialSlamNode::~MonocularInertialSlamNode()
     // Stop all threads
     m_SLAM->Shutdown();
 
+    // Save the point cloud
+    m_SLAM->SavePointCloudMap("PointCloud.txt");
+
     // Save camera trajectory
     m_SLAM->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
 }
