@@ -3,7 +3,10 @@
 #--------------------------------------------------------------------------------------------
 # Camera Parameters
 #--------------------------------------------------------------------------------------------
-Camera.type: "PinHole"
+# The source calibration specifies "equidistant" model. 
+# In ORB-SLAM3, this is handled by "KannalaBrandt8".
+# "PinHole" is for Radial-Tangential distortion.
+Camera.type: "KannalaBrandt8"
 
 # Camera calibration parameters
 Camera.fx: 413.32595366566017
@@ -11,26 +14,29 @@ Camera.fy: 413.70198739483686
 Camera.cx: 305.9507483284928
 Camera.cy: 259.4439948946375
 
-# Distortion parameters (radial-tangential model for PinHole)
-# NOTE: Original AQUALOC calibration uses equidistant/fisheye model
-# which is incompatible with ORB-SLAM3 PinHole type
-# Setting to zero - rectify images beforehand for best results
-Camera.k1: 0.0
-Camera.k2: 0.0
-Camera.p1: 0.0
-Camera.p2: 0.0
-Camera.k3: 0.0
+# Distortion parameters (Equidistant / Fisheye)
+# Source: [-0.0612.., -0.0037.., 0.0273.., -0.0302..]
+Camera.k1: -0.06125568297136998
+Camera.k2: -0.003796743395135256
+Camera.k3: 0.027326634771204592
+Camera.k4: -0.030296403142887066
 
+# Image resolution
 Camera.width: 640
 Camera.height: 512
+
+# Camera FPS (Not in calibration files, assumed 20 based on your draft)
 Camera.fps: 20
+
+# Color order (1: RGB, 0: BGR)
 Camera.RGB: 1
 
 #--------------------------------------------------------------------------------------------
 # Camera-IMU Transformation
 #--------------------------------------------------------------------------------------------
-# Transformation from body-frame (imu) to camera
-# Using T_cam_imu from your calibration data
+# Transformation from Body-frame (IMU) to Camera
+# Source T_cam_imu maps points from IMU frame to Camera frame.
+# This corresponds to Tbc in ORB-SLAM3.
 Tbc: !!opencv-matrix
    rows: 4
    cols: 4
@@ -40,33 +46,24 @@ Tbc: !!opencv-matrix
           0.01230552, 0.99985351, 0.01189665, -0.1489863,
           0.0, 0.0, 0.0, 1.0]
 
-# Alternative transformation from camera to IMU (T_imu_cam)
-# Included for reference - ORB-SLAM3 primarily uses Tbc above
-Tcb: !!opencv-matrix
-   rows: 4
-   cols: 4
-   dt: f
-   data: [-0.99978035, 0.0169654, 0.01230552, -0.01719238,
-          0.01210101, -0.01210461, 0.99985351, 0.14944769,
-          0.01711187, 0.9997828, 0.01189665, -0.01915984,
-          0.0, 0.0, 0.0, 1.0]
-
 # Time shift between camera and IMU (seconds)
+# Source: timeshift_cam_imu
 TimeshiftCamImu: -0.0403806549886
 
 #--------------------------------------------------------------------------------------------
 # IMU Parameters
 #--------------------------------------------------------------------------------------------
-# IMU noise parameters - tuned for underwater MEMS IMU
-IMU.NoiseGyro: 0.1         # rad/s^0.5 (very conservative for initialization)
-IMU.NoiseAcc: 0.5          # m/s^1.5 (very conservative for initialization)
-IMU.GyroWalk: 0.001        # rad/s^1.5
-IMU.AccWalk: 0.01          # m/s^2.5
-IMU.Frequency: 200         # Actual IMU frequency (check your bag file)
+# IMU noise parameters from harbor_imu_noises.yaml
+# Noise Density
+IMU.NoiseGyro: 0.001         # rad/s^0.5 
+IMU.NoiseAcc: 0.02           # m/s^1.5 
 
-# IMU initialization - important for handling raw IMU without orientation
-IMU.InsertKFsWhenLost: 4
-IMU.FastInit: 0            # Use 0 for slower but more robust initialization
+# Random Walk
+IMU.GyroWalk: 0.00005        # rad/s^1.5
+IMU.AccWalk: 0.001           # m/s^2.5
+
+# IMU Frequency
+IMU.Frequency: 200
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters
@@ -84,8 +81,8 @@ ORBextractor.nLevels: 8
 # Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
 # Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
 # You can lower these values if your images have low contrast
-ORBextractor.iniThFAST: 10
-ORBextractor.minThFAST: 3
+ORBextractor.iniThFAST: 20
+ORBextractor.minThFAST: 7
 
 #--------------------------------------------------------------------------------------------
 # Viewer Parameters
