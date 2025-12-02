@@ -10,7 +10,6 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(ORB_SLAM3::System* pSLAM, c
     bUseCompressed_(use_compressed)
 {
     m_SLAM = pSLAM;
-    // std::cout << "slam changed" << std::endl;
 
     auto qos = rclcpp::QoS(rclcpp::SensorDataQoS());
 
@@ -42,12 +41,22 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(ORB_SLAM3::System* pSLAM, c
     // Point cloud publisher
     m_pointcloud_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>(
         "/orb_slam3/map_points", 
-        qos);
+        qos
+    );
     
     // Publish point cloud periodically (every 1 second)
     m_pointcloud_timer = this->create_wall_timer(
         std::chrono::seconds(1),
-        std::bind(&MonocularInertialSlamNode::PublishMapPoints, this));
+        std::bind(&MonocularInertialSlamNode::PublishMapPoints, this)
+    );
+
+    // Pose Publisher
+    pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+        "/orb_slam3/camera_pose", 
+        qos
+    );
+
+    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
     std::cout << "slam changed" << std::endl;
 
@@ -347,8 +356,8 @@ void MonocularInertialSlamNode::SyncWithImu()
             {
                 if (bClahe_) clahe_->apply(im, im);
                 
-                // Note: Tracking is now done INSIDE the lock, consistent with the reference file logic
-                m_SLAM->TrackMonocular(im, tImage, vImuMeas);
+                Sophus::SE3f Tcw = m_SLAM->TrackMonocular(im, tImage, vImuMeas);
+                PublishPose(Tcw, this->now());
             }
             else if (vImuMeas.empty())
             {
@@ -443,4 +452,44 @@ void MonocularInertialSlamNode::PublishMapPoints()
     
     RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                          "Published %d map points", valid_points);
+}
+
+void MonocularInertialSlamNode::PublishPose(Sophus::SE3f Tcw, rclcpp::Time timestamp)
+{
+    // Get the Camera-to-World transform (Twc)
+    // ORB-SLAM3 returns World-to-Camera (Tcw), so we invert it.
+    Sophus::SE3f Twc = Tcw.inverse();
+
+    Eigen::Vector3f t = Twc.translation();
+    Eigen::Quaternionf q = Twc.unit_quaternion();
+    
+    // Create the ROS Pose message
+    geometry_msgs::msg::Pose pose;
+    pose.position.x = t.x();
+    pose.position.y = t.y();
+    pose.position.z = t.z();
+    pose.orientation.x = q.x();
+    pose.orientation.y = q.y();
+    pose.orientation.z = q.z();
+    pose.orientation.w = q.w();
+
+    // Publish PoseStamped (For Rviz)
+    geometry_msgs::msg::PoseStamped pose_msg;
+    pose_msg.header.stamp = timestamp;
+    pose_msg.header.frame_id = "map"; // Global frame
+    pose_msg.pose = pose;
+    pose_pub_->publish(pose_msg);
+
+    // Broadcast TF (For Octomap)
+    geometry_msgs::msg::TransformStamped tf_msg;
+    tf_msg.header.stamp = timestamp;
+    tf_msg.header.frame_id = "map";         // Parent frame
+    tf_msg.child_frame_id = "camera_link";  // Child frame (must match your cloud's frame)
+    
+    tf_msg.transform.translation.x = pose.position.x;
+    tf_msg.transform.translation.y = pose.position.y;
+    tf_msg.transform.translation.z = pose.position.z;
+    tf_msg.transform.rotation = pose.orientation;
+
+    tf_broadcaster_->sendTransform(tf_msg);
 }
