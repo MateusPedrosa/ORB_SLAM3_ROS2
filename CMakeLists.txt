@@ -23,6 +23,8 @@ find_package(message_filters REQUIRED)
 #find_package(Sophus REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(ORB_SLAM3 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 # ADD THIS: Find OpenCV
 find_package(OpenCV 4 REQUIRED)
@@ -51,7 +53,7 @@ add_executable(mono-inertial
   src/monocular-inertial/mono-inertial.cpp
   src/monocular-inertial/monocular-inertial-slam-node.cpp
 )
-ament_target_dependencies(mono-inertial rclcpp sensor_msgs cv_bridge ORB_SLAM3 Pangolin OpenCV)
+ament_target_dependencies(mono-inertial rclcpp sensor_msgs cv_bridge ORB_SLAM3 Pangolin OpenCV tf2 tf2_ros tf2_geometry_msgs)
 
 add_executable(rgbd
   src/rgbd/rgbd.cpp
